@@ -42,7 +42,7 @@ public interface Contract {
     @Override
     public List<MethodMetadata> parseAndValidatateMetadata(Class<?> declaring) {
       List<MethodMetadata> metadata = new ArrayList<MethodMetadata>();
-      for (Method method : declaring.getDeclaredMethods()) {
+      for (Method method : Util.getDeclaredMethods(declaring)) {
         if (method.getDeclaringClass() == Object.class) {
           continue;
         }

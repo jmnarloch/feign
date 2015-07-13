@@ -15,24 +15,13 @@
  */
 package feign;
 
-import java.io.ByteArrayOutputStream;
-import java.io.Closeable;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.Reader;
-import java.lang.reflect.Array;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-import java.lang.reflect.WildcardType;
+import java.io.*;
+import java.lang.reflect.*;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Map;
+import java.util.*;
 
 import static java.lang.String.format;
 
@@ -248,6 +237,38 @@ public class Util {
       return charset.newDecoder().decode(ByteBuffer.wrap(data)).toString();
     } catch (CharacterCodingException ex) {
       return defaultValue;
+    }
+  }
+
+  /**
+   * Retrieves the array of declared methods by the given type including all methods of all super types.
+   *
+   * By default the implementation will traverse the entire inheritance hierarchy retrieving all declared methods by
+   * this interface and all it's super types.
+   *
+   * @param type the type to inspect
+   * @return the array of declared methods
+   */
+  static Method[] getDeclaredMethods(Class<?> type) {
+
+    final List<Method> declaredMethods = new ArrayList<Method>();
+    addDeclaredMethods(declaredMethods, type);
+    return declaredMethods.toArray(new Method[declaredMethods.size()]);
+  }
+
+  /**
+   * Adds all the declared methods by the given interfaces.
+   *
+   * @param declaredMethods the declared methods
+   * @param interfaces      the interfaces to inspect
+   */
+  private static void addDeclaredMethods(List<Method> declaredMethods, Class<?>... interfaces) {
+
+    for(Class<?> itrf : interfaces) {
+      for(Method method : itrf.getDeclaredMethods()) {
+        declaredMethods.add(method);
+      }
+      addDeclaredMethods(declaredMethods, itrf.getInterfaces());
     }
   }
 }

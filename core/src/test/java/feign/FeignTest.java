@@ -17,11 +17,11 @@ package feign;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-
 import com.squareup.okhttp.mockwebserver.MockResponse;
 import com.squareup.okhttp.mockwebserver.SocketPolicy;
 import com.squareup.okhttp.mockwebserver.rule.MockWebServerRule;
-
+import feign.Target.HardCodedTarget;
+import feign.codec.*;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -34,14 +34,6 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
-
-import feign.Target.HardCodedTarget;
-import feign.codec.DecodeException;
-import feign.codec.Decoder;
-import feign.codec.EncodeException;
-import feign.codec.Encoder;
-import feign.codec.ErrorDecoder;
-import feign.codec.StringDecoder;
 
 import static feign.Util.UTF_8;
 import static feign.assertj.MockWebServerAssertions.assertThat;
@@ -59,7 +51,7 @@ public class FeignTest {
   public void iterableQueryParams() throws Exception {
     server.enqueue(new MockResponse().setBody("foo"));
 
-    TestInterface api = new TestInterfaceBuilder().target("http://localhost:" + server.getPort());
+    TestInterface api = new TestInterfaceBuilder().target(target());
 
     api.queryParams("user", Arrays.asList("apple", "pear"));
 
@@ -71,7 +63,7 @@ public class FeignTest {
   public void postTemplateParamsResolve() throws Exception {
     server.enqueue(new MockResponse().setBody("foo"));
 
-    TestInterface api = new TestInterfaceBuilder().target("http://localhost:" + server.getPort());
+    TestInterface api = new TestInterfaceBuilder().target(target());
 
     api.login("netflix", "denominator", "password");
 
@@ -84,7 +76,7 @@ public class FeignTest {
   public void responseCoercesToStringBody() throws Exception {
     server.enqueue(new MockResponse().setBody("foo"));
 
-    TestInterface api = new TestInterfaceBuilder().target("http://localhost:" + server.getPort());
+    TestInterface api = new TestInterfaceBuilder().target(target());
 
     Response response = api.response();
     assertTrue(response.body().isRepeatable());
@@ -95,7 +87,7 @@ public class FeignTest {
   public void postFormParams() throws Exception {
     server.enqueue(new MockResponse().setBody("foo"));
 
-    TestInterface api = new TestInterfaceBuilder().target("http://localhost:" + server.getPort());
+    TestInterface api = new TestInterfaceBuilder().target(target());
 
     api.form("netflix", "denominator", "password");
 
@@ -108,7 +100,7 @@ public class FeignTest {
   public void postBodyParam() throws Exception {
     server.enqueue(new MockResponse().setBody("foo"));
 
-    TestInterface api = new TestInterfaceBuilder().target("http://localhost:" + server.getPort());
+    TestInterface api = new TestInterfaceBuilder().target(target());
 
     api.body(Arrays.asList("netflix", "denominator", "password"));
 
@@ -133,7 +125,7 @@ public class FeignTest {
             encodedType.set(bodyType);
           }
         })
-        .target("http://localhost:" + server.getPort());
+        .target(target());
 
     api.body(Arrays.asList("netflix", "denominator", "password"));
 
@@ -147,7 +139,7 @@ public class FeignTest {
   public void postGZIPEncodedBodyParam() throws Exception {
     server.enqueue(new MockResponse().setBody("foo"));
 
-    TestInterface api = new TestInterfaceBuilder().target("http://localhost:" + server.getPort());
+    TestInterface api = new TestInterfaceBuilder().target(target());
 
     api.gzipBody(Arrays.asList("netflix", "denominator", "password"));
 
@@ -160,7 +152,7 @@ public class FeignTest {
   public void postDeflateEncodedBodyParam() throws Exception {
     server.enqueue(new MockResponse().setBody("foo"));
 
-    TestInterface api = new TestInterfaceBuilder().target("http://localhost:" + server.getPort());
+    TestInterface api = new TestInterfaceBuilder().target(target());
 
     api.deflateBody(Arrays.asList("netflix", "denominator", "password"));
 
@@ -175,7 +167,7 @@ public class FeignTest {
 
     TestInterface api = new TestInterfaceBuilder()
         .requestInterceptor(new ForwardedForInterceptor())
-        .target("http://localhost:" + server.getPort());
+        .target(target());
 
     api.post();
 
@@ -190,7 +182,7 @@ public class FeignTest {
     TestInterface api = new TestInterfaceBuilder()
         .requestInterceptor(new ForwardedForInterceptor())
         .requestInterceptor(new UserAgentInterceptor())
-        .target("http://localhost:" + server.getPort());
+        .target(target());
 
     api.post();
 
@@ -202,7 +194,7 @@ public class FeignTest {
   public void customExpander() throws Exception {
     server.enqueue(new MockResponse());
 
-    TestInterface api = new TestInterfaceBuilder().target("http://localhost:" + server.getPort());
+    TestInterface api = new TestInterfaceBuilder().target(target());
 
     api.expand(new Date(1234l));
 
@@ -228,7 +220,7 @@ public class FeignTest {
 
     TestInterface api = new TestInterfaceBuilder()
         .errorDecoder(new IllegalArgumentExceptionOn404())
-        .target("http://localhost:" + server.getPort());
+        .target(target());
 
     api.post();
   }
@@ -238,7 +230,7 @@ public class FeignTest {
     server.enqueue(new MockResponse().setSocketPolicy(SocketPolicy.DISCONNECT_AT_START));
     server.enqueue(new MockResponse().setBody("success!"));
 
-    TestInterface api = new TestInterfaceBuilder().target("http://localhost:" + server.getPort());
+    TestInterface api = new TestInterfaceBuilder().target(target());
 
     api.post();
 
@@ -255,7 +247,7 @@ public class FeignTest {
           public Object decode(Response response, Type type) {
             return "fail";
           }
-        }).target("http://localhost:" + server.getPort());
+        }).target(target());
 
     assertEquals(api.post(), "fail");
   }
@@ -278,7 +270,7 @@ public class FeignTest {
             }
             return string;
           }
-        }).target("http://localhost:" + server.getPort());
+        }).target(target());
 
     assertEquals(api.post(), "success!");
     assertEquals(2, server.getRequestCount());
@@ -296,7 +288,7 @@ public class FeignTest {
           public Object decode(Response response, Type type) throws IOException {
             throw new IOException("timeout");
           }
-        }).target("http://localhost:" + server.getPort());
+        }).target(target());
 
     api.post();
   }
@@ -319,7 +311,7 @@ public class FeignTest {
         {
           return new RetryableException("play it again sam!", null);
         }
-      }).target(TestInterface.class, "http://localhost:" + server.getPort());
+      }).target(TestInterface.class, target());
 
     api.response();
     api.response(); // if retryer instance was reused, this statement will throw an exception
@@ -356,7 +348,7 @@ public class FeignTest {
           public Object decode(Response response, Type type) throws IOException {
             throw new RuntimeException();
           }
-        }).target("http://localhost:" + server.getPort());
+        }).target(target());
 
     api.post();
   }
@@ -372,7 +364,7 @@ public class FeignTest {
           public void encode(Object object, Type bodyType, RequestTemplate template) {
             throw new RuntimeException();
           }
-        }).target("http://localhost:" + server.getPort());
+        }).target(target());
 
     api.body(Arrays.asList("foo"));
   }
@@ -424,7 +416,7 @@ public class FeignTest {
 
     OtherTestInterface
         api =
-        Feign.builder().target(OtherTestInterface.class, "http://localhost:" + server.getPort());
+        Feign.builder().target(OtherTestInterface.class, target());
 
     assertThat(api.binaryResponseBody())
         .containsExactly(expectedResponse);
@@ -437,12 +429,30 @@ public class FeignTest {
 
     OtherTestInterface
         api =
-        Feign.builder().target(OtherTestInterface.class, "http://localhost:" + server.getPort());
+        Feign.builder().target(OtherTestInterface.class, target());
 
     api.binaryRequestBody(expectedRequest);
 
     assertThat(server.takeRequest())
         .hasBody(expectedRequest);
+  }
+
+  @Test
+  public void postInheritanceBodyParam() throws Exception {
+    server.enqueue(new MockResponse().setBody("foo"));
+
+    ExtendedTestInterface api = Feign.builder().target(ExtendedTestInterface.class, target());
+
+    api.body(Arrays.asList("netflix", "denominator", "password"));
+
+    assertThat(server.takeRequest())
+            .hasHeaders("Content-Length: 32")
+            .hasBody("[netflix, denominator, password]");
+  }
+
+  private String target() {
+
+    return "http://localhost:" + server.getPort();
   }
 
   interface TestInterface {
@@ -504,6 +514,10 @@ public class FeignTest {
 
     @RequestLine("POST /")
     void binaryRequestBody(byte[] contents);
+  }
+
+  interface ExtendedTestInterface extends TestInterface {
+
   }
 
   static class ForwardedForInterceptor implements RequestInterceptor {
@@ -569,7 +583,7 @@ public class FeignTest {
     }
 
     TestInterface target(String url) {
-      return delegate.target(TestInterface.class, url);
+      return delegate.target(ExtendedTestInterface.class, url);
     }
   }
 }

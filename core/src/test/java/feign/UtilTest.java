@@ -15,13 +15,13 @@
  */
 package feign;
 
+import feign.codec.Decoder;
 import org.junit.Test;
 
 import java.io.Reader;
+import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.List;
-
-import feign.codec.Decoder;
 
 import static feign.Util.resolveLastTypeParameter;
 import static org.junit.Assert.assertEquals;
@@ -84,6 +84,29 @@ public class UtilTest {
     assertEquals(Object.class, last);
   }
 
+  @Test
+  public void typeDeclaredMethods() {
+
+    Class<?> context = BaseInterface.class;
+
+    Method[] methods = Util.getDeclaredMethods(context);
+
+    assertEquals(1, methods.length);
+    assertEquals("baseMethod", methods[0].getName());
+  }
+
+  @Test
+  public void typeInheritedDeclaredMethods() {
+
+    Class<?> context = ExtendedInterface.class;
+
+    Method[] methods = Util.getDeclaredMethods(context);
+
+    assertEquals(2, methods.length);
+    assertEquals("additionalMethod", methods[0].getName());
+    assertEquals("baseMethod", methods[1].getName());
+  }
+
   interface LastTypeParameter {
 
     final List<String> LIST_STRING = null;
@@ -103,5 +126,15 @@ public class UtilTest {
 
   static class ParameterizedSubtype implements Parameterized<String> {
 
+  }
+
+  interface BaseInterface {
+
+    void baseMethod();
+  }
+
+  interface ExtendedInterface extends BaseInterface {
+
+    void additionalMethod();
   }
 }

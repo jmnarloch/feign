@@ -15,6 +15,14 @@
  */
 package feign;
 
+import feign.InvocationHandlerFactory.MethodHandler;
+import feign.Param.Expander;
+import feign.Request.Options;
+import feign.codec.Decoder;
+import feign.codec.EncodeException;
+import feign.codec.Encoder;
+import feign.codec.ErrorDecoder;
+
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -24,16 +32,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import feign.InvocationHandlerFactory.MethodHandler;
-import feign.Param.Expander;
-import feign.Request.Options;
-import feign.codec.Decoder;
-import feign.codec.EncodeException;
-import feign.codec.Encoder;
-import feign.codec.ErrorDecoder;
-
 import static feign.Util.checkArgument;
 import static feign.Util.checkNotNull;
+import static feign.Util.getDeclaredMethods;
 
 public class ReflectiveFeign extends Feign {
 
@@ -54,7 +55,7 @@ public class ReflectiveFeign extends Feign {
   public <T> T newInstance(Target<T> target) {
     Map<String, MethodHandler> nameToHandler = targetToHandlersByName.apply(target);
     Map<Method, MethodHandler> methodToHandler = new LinkedHashMap<Method, MethodHandler>();
-    for (Method method : target.type().getDeclaredMethods()) {
+    for (Method method : getDeclaredMethods(target.type())) {
       if (method.getDeclaringClass() == Object.class) {
         continue;
       }
